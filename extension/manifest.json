@@ -1,0 +1,27 @@
+{
+  "manifest_version": 2,
+  "name": "Beep Dev Panel",
+  "version": "1.0",
+  "description": "Floating devtool panel + popup dashboard.",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "browser_action": {
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "scripts": ["background/background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    "content/panel.html",
+    "content/panel.css",
+    "content/panel.js"
+  ]
+}

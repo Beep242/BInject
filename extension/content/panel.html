@@ -1,0 +1,110 @@
+<div id="beep-panel-root">
+  <div class="beep-panel-window">
+    <div class="beep-panel-header">
+      <div class="beep-panel-drag-region"></div>
+      <button class="beep-panel-collapse-btn">Collapse</button>
+    </div>
+
+    <aside class="beep-panel-sidebar">
+      <div class="beep-panel-sidebar-header">
+        <div class="beep-panel-logo-dot"></div>
+        <div>
+          <div class="beep-panel-app-title">Beep Panel</div>
+          <div class="beep-panel-app-subtitle">dev dashboard</div>
+        </div>
+      </div>
+
+      <nav class="beep-panel-nav">
+        <button class="beep-panel-nav-item active" data-page="home">Home</button>
+        <button class="beep-panel-nav-item" data-page="editor">Editor</button>
+        <button class="beep-panel-nav-item" data-page="logs">Logs</button>
+        <button class="beep-panel-nav-item" data-page="csp">CSP</button>
+        <button class="beep-panel-nav-item" data-page="settings">Settings</button>
+        <button class="beep-panel-nav-item" data-page="about">About</button>
+      </nav>
+
+      <div class="beep-panel-sidebar-footer">
+        <div class="beep-panel-status">
+          <span class="beep-panel-status-dot"></span>
+          <span>Status: Active</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="beep-panel-main">
+      <header class="beep-panel-main-header">
+        <h1 id="beep-panel-page-title">Dashboard</h1>
+        <p id="beep-panel-page-subtitle">Floating devtool panel.</p>
+      </header>
+
+      <section id="beep-panel-page-home" class="beep-panel-page active">
+        <div class="beep-panel-card-row">
+          <div class="beep-panel-card">
+            <h2>Quick Actions</h2>
+            <button class="beep-panel-primary-btn" id="beep-panel-inject-btn">Inject</button>
+            <button class="beep-panel-ghost-btn" id="beep-panel-unload-btn">Unload</button>
+          </div>
+          <div class="beep-panel-card">
+            <h2>Focus</h2>
+            <p>Scripts · CSP · Logs</p>
+          </div>
+        </div>
+
+        <div class="beep-panel-card wide">
+          <h2>Recent activity</h2>
+          <pre class="beep-panel-log" id="beep-panel-activity-log">
+[info] Beep panel loaded
+[info] Ready on this page
+          </pre>
+        </div>
+      </section>
+
+      <section id="beep-panel-page-editor" class="beep-panel-page">
+        <div class="beep-panel-card wide" style="height: 340px; display:flex; flex-direction:column;">
+          <h2>Editor</h2>
+          <div id="beep-panel-editor" style="flex:1; margin-top:6px; border-radius:8px; border:1px solid var(--border); background:#020617;"></div>
+        </div>
+      </section>
+
+      <section id="beep-panel-page-logs" class="beep-panel-page">
+        <div class="beep-panel-card wide">
+          <h2>Logs</h2>
+          <pre class="beep-panel-log" id="beep-panel-log-output">
+// logs will appear here
+          </pre>
+        </div>
+      </section>
+
+      <section id="beep-panel-page-csp" class="beep-panel-page">
+        <div class="beep-panel-card wide">
+          <h2>CSP</h2>
+          <pre class="beep-panel-log" id="beep-panel-csp-output">
+Loading CSP...
+          </pre>
+        </div>
+      </section>
+
+      <section id="beep-panel-page-settings" class="beep-panel-page">
+        <div class="beep-panel-card wide">
+          <h2>Settings</h2>
+          <p style="font-size:12px; color:var(--muted);">
+            Manual only. No auto-inject. Per-site script is saved locally.
+          </p>
+        </div>
+      </section>
+
+      <section id="beep-panel-page-about" class="beep-panel-page">
+        <div class="beep-panel-card wide">
+          <h2>About</h2>
+          <p style="font-size:12px; color:var(--muted);">
+            Bee[ · floating devtool panel.
+          </p>
+        </div>
+      </section>
+
+      <div class="beep-panel-resize-handle"></div>
+    </main>
+  </div>
+</div>
+
+<div id="beep-panel-collapsed">Bee[</div>
