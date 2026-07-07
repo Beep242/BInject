@@ -1,76 +1,272 @@
-// Listen for popup messages (open panel, etc.)
-browser.runtime.onMessage.addListener((msg, sender) => {
-  if (msg.action === "open-panel") {
-    injectFloatingPanel();
-  }
+let panelInjected = false;
+let stylesInjected = false;
+let domPicking = false;
 
+function injectStyles() {
+  if (stylesInjected) return;
+  stylesInjected = true;
+
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = browser.runtime.getURL("content/panel.css");
+  document.documentElement.appendChild(link);
+}
+
+async function injectPanel() {
+  if (panelInjected) return;
+  panelInjected = true;
+
+  injectStyles();
+
+  const htmlUrl = browser.runtime.getURL("content/panel.html");
+  const html = await fetch(htmlUrl).then(r => r.text());
+
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  const root = container.firstElementChild;
+  const collapsed = container.lastElementChild;
+
+  document.documentElement.appendChild(root);
+  document.documentElement.appendChild(collapsed);
+}
+
+function unloadPanel() {
+  const root = document.getElementById("beep-panel-root");
+  const collapsed = document.getElementById("beep-panel-collapsed");
+  if (root) root.remove();
+  if (collapsed) collapsed.remove();
+  panelInjected = false;
+}
+
+function openPanel() {
+  const root = document.getElementById("beep-panel-root");
+  const collapsed = document.getElementById("beep-panel-collapsed");
+
+  if (root) {
+    root.style.display = "block";
+    if (collapsed) collapsed.style.display = "none";
+  } else {
+    injectPanel();
+  }
+}
+
+// page error streaming
+window.addEventListener("error", (e) => {
+  browser.runtime.sendMessage({
+    action: "log-event",
+    level: "error",
+    message: e.message,
+    source: e.filename,
+    line: e.lineno,
+    col: e.colno
+  });
+});
+
+window.addEventListener("unhandledrejection", (e) => {
+  browser.runtime.sendMessage({
+    action: "log-event",
+    level: "error",
+    message: String(e.reason),
+    source: "unhandledrejection"
+  });
+});
+
+// console patch (page context)
+function patchConsole() {
+  if (window.__beepConsolePatched) return;
+  window.__beepConsolePatched = true;
+
+  const send = (level, args) => {
+    browser.runtime.sendMessage({
+      action: "log-event",
+      level,
+      message: args.map(a => {
+        try { return typeof a === "object" ? JSON.stringify(a) : String(a); }
+        catch { return String(a); }
+      }).join(" ")
+    });
+  };
+
+  ["log", "warn", "error"].forEach(level => {
+    const orig = console[level];
+    console[level] = function (...args) {
+      send(level, args);
+      orig.apply(console, args);
+    };
+  });
+}
+
+patchConsole();
+
+browser.runtime.onMessage.addListener((msg) => {
   if (msg.action === "inject") {
-    console.log("[Beep Panel] Inject requested (handled via content script).");
+    injectPanel();
   }
 
   if (msg.action === "unload") {
-    console.log("[Beep Panel] Unload requested (no-op in content script).");
+    unloadPanel();
   }
-});
 
-// Listen for messages from the panel (page context -> content script)
-window.addEventListener("message", (event) => {
-  if (event.source !== window) return;
-  const data = event.data;
-  if (!data || data.source !== "beep-panel") return;
+  if (msg.action === "open-panel") {
+    openPanel();
+  }
 
-  if (data.type === "run-code") {
-    const code = data.code || "";
-    try {
-      const fn = new Function(code);
-      const result = fn();
-      window.postMessage(
-        {
-          source: "beep-panel",
-          type: "run-result",
-          ok: true,
-          result: stringifySafe(result),
-        },
-        "*"
-      );
-    } catch (e) {
-      window.postMessage(
-        {
-          source: "beep-panel",
-          type: "run-result",
-          ok: false,
-          error: String(e),
-        },
-        "*"
-      );
+  if (msg.action === "scan-page") {
+    const results = [];
+
+    if (location.protocol === "https:") {
+      const mixed = [...document.querySelectorAll("img,script,link,iframe")]
+        .filter(el => (el.src && el.src.startsWith("http:")) || (el.href && el.href.startsWith("http:")));
+      if (mixed.length > 0) {
+        results.push({
+          title: "Mixed Content",
+          detail: `${mixed.length} insecure resources loaded over HTTP`,
+          severity: "high"
+        });
+      }
     }
+
+    const inlineScripts = [...document.scripts].filter(s => !s.src);
+    if (inlineScripts.length > 0) {
+      results.push({
+        title: "Inline Scripts Detected",
+        detail: `${inlineScripts.length} inline <script> tags found`,
+        severity: "medium"
+      });
+    }
+
+    const debugGlobals = ["__REDUX_DEVTOOLS_EXTENSION__", "__VUE_DEVTOOLS_GLOBAL_HOOK__"];
+    const foundDebug = debugGlobals.filter(g => window[g]);
+    if (foundDebug.length > 0) {
+      results.push({
+        title: "Debug Hooks Exposed",
+        detail: foundDebug.join(", "),
+        severity: "medium"
+      });
+    }
+
+    if (msg.headers) {
+      const lower = {};
+      for (const k in msg.headers) lower[k.toLowerCase()] = msg.headers[k];
+
+      if (!lower["content-security-policy"]) {
+        results.push({
+          title: "Missing CSP",
+          detail: "No Content-Security-Policy header detected",
+          severity: "high"
+        });
+      }
+
+      if (!lower["x-frame-options"]) {
+        results.push({
+          title: "Missing X-Frame-Options",
+          detail: "Page may be vulnerable to clickjacking",
+          severity: "high"
+        });
+      }
+    }
+
+    if ("webkitRequestFileSystem" in window) {
+      results.push({
+        title: "Deprecated API",
+        detail: "webkitRequestFileSystem is deprecated and unsafe",
+        severity: "high"
+      });
+    }
+
+    const inlineScripts2 = [...document.scripts].filter(s => !s.src);
+    const evalCount = inlineScripts2.filter(s => s.textContent.includes("eval(")).length;
+    if (evalCount > 0) {
+      results.push({
+        title: "Eval Usage",
+        detail: `${evalCount} inline scripts contain eval()`,
+        severity: "high"
+      });
+    }
+
+    return Promise.resolve(results);
   }
+
+  if (msg.action === "start-dom-pick") {
+    if (domPicking) return;
+    domPicking = true;
+
+    const overlay = document.createElement("div");
+    overlay.id = "beep-dom-overlay";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      pointerEvents: "none",
+      border: "2px solid #4cc9ff",
+      background: "rgba(76, 201, 255, 0.15)",
+      zIndex: "2147483646"
+    });
+    document.documentElement.appendChild(overlay);
+
+    function moveOverlay(el) {
+      if (!el || el === document.documentElement || el === document.body) return;
+      const rect = el.getBoundingClientRect();
+      overlay.style.left = rect.left + "px";
+      overlay.style.top = rect.top + "px";
+      overlay.style.width = rect.width + "px";
+      overlay.style.height = rect.height + "px";
+    }
+
+    function onMove(e) {
+      moveOverlay(e.target);
+    }
+
+    function onClick(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      domPicking = false;
+      document.removeEventListener("mousemove", onMove, true);
+      document.removeEventListener("click", onClick, true);
+      overlay.remove();
+
+      const el = e.target;
+      const info = {
+        tag: el.tagName,
+        id: el.id || null,
+        classes: el.className || null,
+        text: (el.innerText || "").trim().slice(0, 200)
+      };
+
+      browser.runtime.sendMessage({
+        action: "dom-picked",
+        info
+      });
+    }
+
+    document.addEventListener("mousemove", onMove, true);
+    document.addEventListener("click", onClick, true);
+  }
+
+  if (msg.action === "get-network") {
+    const entries = performance.getEntriesByType("resource") || [];
+    const simplified = entries.slice(-100).map(e => ({
+      name: e.name,
+      type: e.initiatorType,
+      duration: Math.round(e.duration),
+      size: e.transferSize || e.encodedBodySize || 0
+    }));
+    return Promise.resolve(simplified);
+  }
+
+  if (msg.action === "inject-editor-code") {
+    const code = msg.code || "";
+    const script = document.createElement("script");
+    script.textContent = `
+      (function() {
+        try {
+          ${code}
+        } catch (err) {
+          console.error("Editor script error:", err);
+        }
+      })();
+    `;
+    document.documentElement.appendChild(script);
+    script.remove();
+  }
+
+  return undefined;
 });
-
-function stringifySafe(v) {
-  try {
-    if (typeof v === "string") return v;
-    return JSON.stringify(v);
-  } catch {
-    return String(v);
-  }
-}
-
-async function injectFloatingPanel() {
-  if (document.getElementById("beep-panel-root")) return;
-
-  const html = await fetch(browser.runtime.getURL("content/panel.html")).then(r => r.text());
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = html;
-  document.documentElement.appendChild(wrapper);
-
-  const css = document.createElement("link");
-  css.rel = "stylesheet";
-  css.href = browser.runtime.getURL("content/panel.css");
-  document.documentElement.appendChild(css);
-
-  const script = document.createElement("script");
-  script.setAttribute("type", "text/javascript");
-  script.src = browser.runtime.getURL("content/panel.js");
-  document.documentElement.appendChild(script);
-}

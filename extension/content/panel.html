@@ -1,4 +1,4 @@
-<div id="beep-panel-root">
+<div id="beep-panel-root" data-theme="dark">
   <div class="beep-panel-window">
     <div class="beep-panel-header">
       <div class="beep-panel-drag-region"></div>
@@ -15,12 +15,15 @@
       </div>
 
       <nav class="beep-panel-nav">
-        <button class="beep-panel-nav-item active" data-page="home">Home</button>
-        <button class="beep-panel-nav-item" data-page="editor">Editor</button>
-        <button class="beep-panel-nav-item" data-page="logs">Logs</button>
-        <button class="beep-panel-nav-item" data-page="csp">CSP</button>
-        <button class="beep-panel-nav-item" data-page="settings">Settings</button>
-        <button class="beep-panel-nav-item" data-page="about">About</button>
+        <button class="beep-panel-nav-item active" data-page="home">🏠 Home</button>
+        <button class="beep-panel-nav-item" data-page="editor">✏️ Editor</button>
+        <button class="beep-panel-nav-item" data-page="logs">📜 Logs</button>
+        <button class="beep-panel-nav-item" data-page="scanner">🛡️ Scanner</button>
+        <button class="beep-panel-nav-item" data-page="dom">🌳 DOM</button>
+        <button class="beep-panel-nav-item" data-page="network">🌐 Network</button>
+        <button class="beep-panel-nav-item" data-page="csp">🔐 CSP</button>
+        <button class="beep-panel-nav-item" data-page="settings">⚙️ Settings</button>
+        <button class="beep-panel-nav-item" data-page="about">ℹ️ About</button>
       </nav>
 
       <div class="beep-panel-sidebar-footer">
@@ -37,6 +40,7 @@
         <p id="beep-panel-page-subtitle">Floating devtool panel.</p>
       </header>
 
+      <!-- HOME -->
       <section id="beep-panel-page-home" class="beep-panel-page active">
         <div class="beep-panel-card-row">
           <div class="beep-panel-card">
@@ -45,8 +49,23 @@
             <button class="beep-panel-ghost-btn" id="beep-panel-unload-btn">Unload</button>
           </div>
           <div class="beep-panel-card">
-            <h2>Focus</h2>
-            <p>Scripts · CSP · Logs</p>
+            <h2>Page</h2>
+            <div class="beep-panel-log" style="max-height:80px;" id="beep-panel-home-page-info"></div>
+          </div>
+        </div>
+
+        <div class="beep-panel-card-row">
+          <div class="beep-panel-card">
+            <h2>Last Scan</h2>
+            <div class="beep-panel-log" style="max-height:80px;" id="beep-panel-home-scan-summary">
+No scan yet.
+            </div>
+          </div>
+          <div class="beep-panel-card">
+            <h2>CSP Status</h2>
+            <div class="beep-panel-log" style="max-height:80px;" id="beep-panel-home-csp-summary">
+Not loaded.
+            </div>
           </div>
         </div>
 
@@ -59,45 +78,114 @@
         </div>
       </section>
 
+      <!-- EDITOR -->
       <section id="beep-panel-page-editor" class="beep-panel-page">
         <div class="beep-panel-card wide" style="height: 340px; display:flex; flex-direction:column;">
-          <h2>Editor</h2>
-          <div id="beep-panel-editor" style="flex:1; margin-top:6px; border-radius:8px; border:1px solid var(--border); background:#020617;"></div>
+          <h2>Editor (page injection)</h2>
+          <p style="font-size:11px; color:var(--muted); margin-bottom:4px;">
+            Saved per hostname. Runs directly in the page JS context.
+          </p>
+          <div class="beep-editor-wrapper">
+            <div class="beep-editor-gutter" id="beep-panel-editor-lines"></div>
+            <textarea id="beep-panel-editor"
+                      spellcheck="false"
+                      placeholder="// code here runs in the page context"></textarea>
+          </div>
+          <div style="margin-top:6px; display:flex; gap:8px;">
+            <button class="beep-panel-primary-btn" id="beep-panel-editor-run">Run in page</button>
+            <button class="beep-panel-ghost-btn" id="beep-panel-editor-reset">Reset</button>
+          </div>
         </div>
       </section>
 
+      <!-- LOGS -->
       <section id="beep-panel-page-logs" class="beep-panel-page">
         <div class="beep-panel-card wide">
           <h2>Logs</h2>
+          <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+            <span style="font-size:11px; color:var(--muted);">Stream:</span>
+            <span style="font-size:11px;">Errors + page console</span>
+            <button class="beep-panel-ghost-btn" id="beep-panel-logs-clear">Clear</button>
+          </div>
           <pre class="beep-panel-log" id="beep-panel-log-output">
 // logs will appear here
           </pre>
         </div>
       </section>
 
+      <!-- SCANNER -->
+      <section id="beep-panel-page-scanner" class="beep-panel-page">
+        <div class="beep-panel-card wide">
+          <h2>Vulnerability Scanner</h2>
+          <button id="beep-panel-scan-btn" class="beep-panel-primary-btn">Run Scan</button>
+          <div id="beep-panel-scan-results" style="margin-top:10px; display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
+      </section>
+
+      <!-- DOM -->
+      <section id="beep-panel-page-dom" class="beep-panel-page">
+        <div class="beep-panel-card wide">
+          <h2>DOM Inspector</h2>
+          <p style="font-size:11px; color:var(--muted); margin-bottom:6px;">
+            Click "Pick element" then click on the page.
+          </p>
+          <button id="beep-panel-dom-pick" class="beep-panel-primary-btn">Pick element</button>
+          <div class="beep-panel-log" style="margin-top:8px; max-height:180px;" id="beep-panel-dom-output">
+No element selected yet.
+          </div>
+        </div>
+      </section>
+
+      <!-- NETWORK -->
+      <section id="beep-panel-page-network" class="beep-panel-page">
+        <div class="beep-panel-card wide">
+          <h2>Network</h2>
+          <p style="font-size:11px; color:var(--muted); margin-bottom:6px;">
+            Snapshot of recent resource requests (performance entries).
+          </p>
+          <button id="beep-panel-network-refresh" class="beep-panel-primary-btn">Refresh</button>
+          <div class="beep-panel-log" style="margin-top:8px; max-height:220px;" id="beep-panel-network-output">
+No data yet.
+          </div>
+        </div>
+      </section>
+
+      <!-- CSP -->
       <section id="beep-panel-page-csp" class="beep-panel-page">
         <div class="beep-panel-card wide">
           <h2>CSP</h2>
+          <button id="beep-panel-csp-refresh" class="beep-panel-primary-btn">Reload CSP</button>
+          <button id="beep-panel-csp-copy" class="beep-panel-ghost-btn">Copy</button>
           <pre class="beep-panel-log" id="beep-panel-csp-output">
 Loading CSP...
           </pre>
         </div>
       </section>
 
+      <!-- SETTINGS -->
       <section id="beep-panel-page-settings" class="beep-panel-page">
         <div class="beep-panel-card wide">
           <h2>Settings</h2>
-          <p style="font-size:12px; color:var(--muted);">
-            Manual only. No auto-inject. Per-site script is saved locally.
-          </p>
+          <div style="font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:8px;">
+            <div>
+              <strong>Theme:</strong>
+              <button class="beep-panel-ghost-btn" id="beep-panel-theme-toggle">Toggle light/dark</button>
+            </div>
+            <div>
+              <strong>Panel:</strong>
+              <button class="beep-panel-ghost-btn" id="beep-panel-reset-position">Reset position</button>
+            </div>
+          </div>
         </div>
       </section>
 
+      <!-- ABOUT -->
       <section id="beep-panel-page-about" class="beep-panel-page">
         <div class="beep-panel-card wide">
           <h2>About</h2>
           <p style="font-size:12px; color:var(--muted);">
-            Bee[ · floating devtool panel.
+            Beep · floating devtool panel.<br>
+            This build includes: scanner, DOM inspector, network snapshot, per-site editor, theme switcher, page-context injection.
           </p>
         </div>
       </section>
