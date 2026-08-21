@@ -1,6 +1,29 @@
 let panelInjected = false;
 let stylesInjected = false;
 let domPicking = false;
+let selectorPicking = false;
+
+// Builds a CSS selector that matches "elements like this one" so a single
+// click can target every repeated instance of a question/list-item pattern.
+// Prefers the clicked element's own class list; falls back to tag name
+// scoped under the nearest ancestor with a stable-looking id.
+function buildRepeatSelector(el) {
+  if (el.className && typeof el.className === "string" && el.className.trim()) {
+    const classes = el.className.trim().split(/\s+/).map(c => `.${CSS.escape(c)}`).join("");
+    return `${el.tagName.toLowerCase()}${classes}`;
+  }
+
+  let ancestor = el.parentElement;
+  while (ancestor && !ancestor.id) {
+    ancestor = ancestor.parentElement;
+  }
+
+  if (ancestor && ancestor.id) {
+    return `#${CSS.escape(ancestor.id)} ${el.tagName.toLowerCase()}`;
+  }
+
+  return el.tagName.toLowerCase();
+}
 
 function injectStyles() {
   if (stylesInjected) return;
@@ -239,6 +262,81 @@ browser.runtime.onMessage.addListener((msg) => {
 
     document.addEventListener("mousemove", onMove, true);
     document.addEventListener("click", onClick, true);
+  }
+
+  if (msg.action === "start-selector-pick") {
+    if (selectorPicking) return;
+    selectorPicking = true;
+
+    const overlay = document.createElement("div");
+    overlay.id = "beep-selector-overlay";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      pointerEvents: "none",
+      border: "2px solid #22c55e",
+      background: "rgba(34, 197, 94, 0.15)",
+      zIndex: "2147483646"
+    });
+    document.documentElement.appendChild(overlay);
+
+    function moveOverlay(el) {
+      if (!el || el === document.documentElement || el === document.body) return;
+      const rect = el.getBoundingClientRect();
+      overlay.style.left = rect.left + "px";
+      overlay.style.top = rect.top + "px";
+      overlay.style.width = rect.width + "px";
+      overlay.style.height = rect.height + "px";
+    }
+
+    function onMove(e) {
+      moveOverlay(e.target);
+    }
+
+    function onClick(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      selectorPicking = false;
+      document.removeEventListener("mousemove", onMove, true);
+      document.removeEventListener("click", onClick, true);
+      overlay.remove();
+
+      const selector = buildRepeatSelector(e.target);
+      let count = 0;
+      try {
+        count = document.querySelectorAll(selector).length;
+      } catch {
+        count = 0;
+      }
+
+      browser.runtime.sendMessage({
+        action: "selector-picked",
+        selector,
+        count
+      });
+    }
+
+    document.addEventListener("mousemove", onMove, true);
+    document.addEventListener("click", onClick, true);
+  }
+
+  if (msg.action === "scan-questions") {
+    const selector = msg.selector || "";
+    let items = [];
+
+    try {
+      items = [...document.querySelectorAll(selector)]
+        .map(el => (el.innerText || "").trim())
+        .filter(Boolean);
+    } catch (e) {
+      return Promise.resolve({ error: `Invalid selector: ${e.message}` });
+    }
+
+    const truncated = items.length > 200;
+    return Promise.resolve({
+      items: items.slice(0, 200),
+      truncated,
+      total: items.length
+    });
   }
 
   if (msg.action === "get-network") {

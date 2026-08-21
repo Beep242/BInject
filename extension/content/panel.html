@@ -22,6 +22,7 @@
         <button class="beep-panel-nav-item" data-page="dom">🌳 DOM</button>
         <button class="beep-panel-nav-item" data-page="network">🌐 Network</button>
         <button class="beep-panel-nav-item" data-page="csp">🔐 CSP</button>
+        <button class="beep-panel-nav-item" data-page="reader">📖 Reader</button>
         <button class="beep-panel-nav-item" data-page="settings">⚙️ Settings</button>
         <button class="beep-panel-nav-item" data-page="about">ℹ️ About</button>
       </nav>
@@ -162,6 +163,32 @@ Loading CSP...
         </div>
       </section>
 
+      <!-- READER -->
+      <section id="beep-panel-page-reader" class="beep-panel-page">
+        <div class="beep-panel-card wide">
+          <h2>Question Reader</h2>
+          <p style="font-size:11px; color:var(--muted); margin-bottom:6px;">
+            Read-only text extraction for your own study notes. Click one question on the page
+            to teach it the pattern, then scan to pull the matching text from every question.
+            This never reads answers, grades, or solution data, and never fills in or submits anything.
+          </p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <button id="beep-panel-reader-pick" class="beep-panel-primary-btn">Pick a question</button>
+            <button id="beep-panel-reader-scan" class="beep-panel-ghost-btn" disabled>Scan all matches</button>
+          </div>
+          <div class="beep-panel-log" style="margin-top:8px; max-height:60px;" id="beep-panel-reader-selector">
+No pattern learned yet.
+          </div>
+          <div class="beep-panel-log" style="margin-top:8px; max-height:220px;" id="beep-panel-reader-output">
+Results will appear here.
+          </div>
+          <div style="margin-top:6px; display:flex; gap:8px;">
+            <button id="beep-panel-reader-copy" class="beep-panel-ghost-btn" disabled>Copy as Markdown</button>
+            <button id="beep-panel-reader-download" class="beep-panel-ghost-btn" disabled>Download .md</button>
+          </div>
+        </div>
+      </section>
+
       <!-- SETTINGS -->
       <section id="beep-panel-page-settings" class="beep-panel-page">
         <div class="beep-panel-card wide">
@@ -185,7 +212,8 @@ Loading CSP...
           <h2>About</h2>
           <p style="font-size:12px; color:var(--muted);">
             Beep · floating devtool panel.<br>
-            This build includes: scanner, DOM inspector, network snapshot, per-site editor, theme switcher, page-context injection.
+            This build includes: scanner, DOM inspector, network snapshot, per-site editor, theme switcher,
+            page-context injection, and a read-only question reader for study notes.
           </p>
         </div>
       </section>

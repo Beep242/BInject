@@ -288,6 +288,14 @@
   color: var(--text);
 }
 
+.beep-panel-primary-btn:disabled,
+.beep-panel-ghost-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Pages */
 
 .beep-panel-page {

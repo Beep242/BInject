@@ -44,6 +44,8 @@ browser.runtime.onMessage.addListener((msg, sender) => {
   // Forward panel → content actions that need DOM access
   if (
     msg.action === "start-dom-pick" ||
+    msg.action === "start-selector-pick" ||
+    msg.action === "scan-questions" ||
     msg.action === "get-network" ||
     msg.action === "inject" ||
     msg.action === "unload" ||

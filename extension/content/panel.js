@@ -24,6 +24,7 @@
       dom: { title: "DOM Inspector", subtitle: "Click-to-inspect elements." },
       network: { title: "Network", subtitle: "Recent resource requests." },
       csp: { title: "CSP", subtitle: "Content-Security-Policy for this page." },
+      reader: { title: "Question Reader", subtitle: "Read-only question text extraction for study notes." },
       settings: { title: "Settings", subtitle: "Theme and panel behavior." },
       about: { title: "About", subtitle: "Beep · floating devtool panel." }
     };
@@ -318,6 +319,90 @@
       });
     }
 
+    // Question Reader
+    const readerPickBtn = document.getElementById("beep-panel-reader-pick");
+    const readerScanBtn = document.getElementById("beep-panel-reader-scan");
+    const readerCopyBtn = document.getElementById("beep-panel-reader-copy");
+    const readerDownloadBtn = document.getElementById("beep-panel-reader-download");
+    const readerSelectorOutput = document.getElementById("beep-panel-reader-selector");
+    const readerOutput = document.getElementById("beep-panel-reader-output");
+
+    let readerSelector = null;
+    let readerItems = [];
+
+    function readerMarkdown() {
+      return readerItems.map((text, i) => `**Q${i + 1}.** ${text}`).join("\n\n");
+    }
+
+    if (readerPickBtn) {
+      readerPickBtn.addEventListener("click", () => {
+        browser.runtime.sendMessage({ action: "start-selector-pick" });
+        readerSelectorOutput.textContent = "Click a question on the page…";
+        log("Reader: picking a question pattern.");
+      });
+    }
+
+    if (readerScanBtn) {
+      readerScanBtn.addEventListener("click", async () => {
+        if (!readerSelector) return;
+        readerOutput.textContent = "Scanning…";
+        const result = await browser.runtime.sendMessage({
+          action: "scan-questions",
+          selector: readerSelector
+        });
+
+        if (!result || result.error) {
+          readerOutput.textContent = result?.error || "Scan failed.";
+          readerCopyBtn.disabled = true;
+          readerDownloadBtn.disabled = true;
+          log("Reader: scan failed.");
+          return;
+        }
+
+        readerItems = result.items;
+        if (!readerItems.length) {
+          readerOutput.textContent = "No matching elements found. Try picking a different question.";
+          readerCopyBtn.disabled = true;
+          readerDownloadBtn.disabled = true;
+          log("Reader: scan found nothing.");
+          return;
+        }
+
+        const warning = result.truncated
+          ? `\n\n… showing first 200 of ${result.total} matches.`
+          : "";
+        readerOutput.textContent =
+          readerItems.map((text, i) => `Q${i + 1}. ${text}`).join("\n\n") + warning;
+        readerCopyBtn.disabled = false;
+        readerDownloadBtn.disabled = false;
+        log(`Reader: extracted ${readerItems.length} question(s).`);
+      });
+    }
+
+    if (readerCopyBtn) {
+      readerCopyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(readerMarkdown());
+          log("Reader: copied questions as Markdown.");
+        } catch {
+          log("Reader: failed to copy to clipboard.");
+        }
+      });
+    }
+
+    if (readerDownloadBtn) {
+      readerDownloadBtn.addEventListener("click", () => {
+        const blob = new Blob([readerMarkdown()], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${window.location.hostname}-questions.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        log("Reader: downloaded questions.md.");
+      });
+    }
+
     // Network snapshot
     const netRefresh = document.getElementById("beep-panel-network-refresh");
     const netOutput = document.getElementById("beep-panel-network-output");
@@ -395,6 +480,13 @@
           `Classes: ${info.classes || "-"}\n\n` +
           `Text:\n${info.text || "(no text)"}`;
         log("DOM element picked.");
+      }
+
+      if (msg.action === "selector-picked" && readerSelectorOutput) {
+        readerSelector = msg.selector;
+        readerSelectorOutput.textContent = `Pattern: ${msg.selector}\nMatches on page right now: ${msg.count}`;
+        readerScanBtn.disabled = msg.count === 0;
+        log(`Reader: learned pattern "${msg.selector}" (${msg.count} matches).`);
       }
     });
 
